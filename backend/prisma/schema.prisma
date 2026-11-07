@@ -1,0 +1,145 @@
+// This is your Prisma schema file for TalentHub
+// Campus Placement Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   // STUDENT, COMPANY, COORDINATOR
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student?
+  company Company?
+
+  @@index([email])
+}
+
+model Student {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName       String
+  rollNumber     String   @unique
+  department     String
+  cgpa           Float
+  graduationYear Int
+  activeBacklogs Int      @default(0)
+  phone          String?
+  resumeUrl      String?
+  skills         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  applications Application[]
+
+  @@index([rollNumber])
+  @@index([department])
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName  String
+  industry     String
+  website      String?
+  description  String?
+  contactEmail String?
+  contactPhone String?
+  location     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobListings JobListing[]
+
+  @@index([companyName])
+}
+
+model JobListing {
+  id                 String   @id @default(cuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title              String
+  description        String
+  roleType           String?  @default("Full-time")
+  packageCtc         Float?
+  location           String?
+  minCgpa            Float    @default(0.0)
+  allowedDepartments String   // Comma-separated or JSON list of departments, e.g. "Computer Science,Information Science"
+  maxBacklogs        Int      @default(0)
+  deadline           DateTime
+  status             String   @default("OPEN") // OPEN, CLOSED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  applications Application[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model Application {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  jobId           String
+  job             JobListing @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status          String   @default("APPLIED") // APPLIED, SHORTLISTED, INTERVIEW, OFFERED, HIRED, REJECTED
+  appliedAt       DateTime @default(now())
+  statusUpdatedAt DateTime @default(now())
+  remarks         String?
+
+  interviews Interview[]
+  offer      Offer?
+
+  @@unique([studentId, jobId]) // Enforces at DB level: student cannot apply twice for the same job
+  @@index([studentId])
+  @@index([jobId])
+  @@index([status])
+}
+
+model Interview {
+  id            String   @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  roundName     String
+  scheduledDate DateTime
+  mode          String   @default("ONLINE") // ONLINE or OFFLINE
+  venueOrLink   String?
+  status        String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  feedback      String?
+  result        String?  // CLEARED, FAILED, PENDING
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([applicationId])
+}
+
+model Offer {
+  id             String    @id @default(cuid())
+  applicationId  String    @unique
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  ctc            Float
+  designation    String
+  joiningDate    DateTime?
+  offerLetterUrl String?
+  deadline       DateTime?
+  status         String    @default("PENDING") // PENDING, ACCEPTED, REJECTED, EXPIRED
+  responseDate   DateTime?
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([applicationId])
+  @@index([status])
+}
